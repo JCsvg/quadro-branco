@@ -3,3 +3,9 @@
 .claude/
 .vscode/
 .idea/
+
+# Python (backend)
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
