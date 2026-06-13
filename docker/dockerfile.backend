@@ -1,0 +1,18 @@
+# Serviço de Nomes do SDWB. Usa só a stdlib, então a imagem é mínima.
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Copia apenas o código-fonte (sem .venv nem testes).
+COPY src/ ./src/
+
+# Permite `import config`, `import registro`, etc. a partir de src/.
+ENV PYTHONPATH=/app/src
+# Logs aparecem na hora, sem buffer.
+ENV PYTHONUNBUFFERED=1
+ENV NS_HOST=0.0.0.0
+ENV NS_PORT=9000
+
+EXPOSE 9000
+
+CMD ["python", "src/main.py"]

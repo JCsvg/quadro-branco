@@ -35,6 +35,18 @@ Variáveis de ambiente: `NS_HOST` (padrão `0.0.0.0`), `NS_PORT` (padrão `9000`
 ./.venv/bin/python -m pytest tests/ -q
 ```
 
+## Rodar via Docker
+
+A partir da pasta `docker/`:
+
+```bash
+docker-compose up -d --build   # sobe o Serviço de Nomes na porta 9000
+docker-compose logs -f         # acompanha os logs
+docker-compose down            # encerra
+```
+
+O container tem `restart: unless-stopped` — volta sozinho se cair.
+
 ## Protocolo (JSON delimitado por `\n`)
 
 Cliente → Serviço de Nomes:

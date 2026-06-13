@@ -1,0 +1,16 @@
+version: "3.8"
+
+services:
+  servico-nomes:
+    build:
+      # Contexto é a pasta backend/; o Dockerfile fica aqui em docker/.
+      context: ../backend
+      dockerfile: ../docker/dockerfile.backend
+    container_name: sdwb-servico-nomes
+    # Reinicia sozinho se cair (resiliência exigida no enunciado).
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    environment:
+      NS_HOST: "0.0.0.0"
+      NS_PORT: "9000"
