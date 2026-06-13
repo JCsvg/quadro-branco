@@ -1,0 +1,3 @@
+# O Serviço de Nomes usa apenas a biblioteca padrão do Python.
+# Dependências só de desenvolvimento abaixo (instale com -r este arquivo).
+pytest>=8.0
