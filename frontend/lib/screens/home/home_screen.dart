@@ -1,12 +1,6 @@
 import 'package:flutter/material.dart';
-
-
-///
-/// icon + text
-/// sizedbox
-/// elevatebutton
-/// outlinebutton
-
+import 'package:sdwb/core/signals/theme_controll_signals.dart';
+import 'package:sdwb/screens/home/widgets/baseboard_widget.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -18,20 +12,29 @@ class HomeScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.light_mode, size: 100),
+            Icon(
+              Icons.light_mode,
+              size: 100,
+              color: Theme.of(context).colorScheme.primary,
+            ),
             const SizedBox(height: 20),
-            const Text('Quadro Branco', style: TextStyle(fontSize: 30)),
+            Text(
+              'Quadro Branco Distribuido',
+              style: Theme.of(context).textTheme.headlineMedium,
+            ),
             const SizedBox(height: 40),
             ElevatedButton(
-              onPressed: () => {},//Navigator.pushNamed(context, 'view'),
+              onPressed: () => Navigator.pushNamed(context, 'view'),
               child: const Text('Jogar'),
             ),
             const SizedBox(height: 20),
             OutlinedButton(
-              onPressed: () => {}, ///Navigator.pushNamed(context, 'board'),
+              onPressed: () => Navigator.pushNamed(context, 'board'),
               child: const Text('Criar Quadro'),
             ),
-          ]
+            const SizedBox(height: 20),
+            BaseboardWidget(),
+          ],
         ),
       ),
     );
