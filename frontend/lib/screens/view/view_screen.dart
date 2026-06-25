@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:sdwb/core/signals/router_signals.dart';
 import 'package:sdwb/core/theme/app_bar.dart';
 import 'package:sdwb/models/sala.dart';
+import 'package:sdwb/screens/view/widgets/sala_card_widget.dart';
 
 class ViewScreen extends StatefulWidget {
   const ViewScreen({super.key});
@@ -25,16 +27,14 @@ class _ViewScreenState extends State<ViewScreen> {
     setState(() {
       _isLoading = false;
       _salas = [
-        Sala(nome: 'Gartic Phone', ip: 'localhost', porta: 8080),
-        Sala(nome: 'Só Quadrados', ip: 'localhost', porta: 8081),
-        Sala(nome: 'Só Quadrados', ip: 'localhost', porta: 8081),
-        Sala(nome: 'Só Quadrados', ip: 'localhost', porta: 8081),
-        Sala(nome: 'Só Quadrados', ip: 'localhost', porta: 8081),
-        Sala(nome: 'Só Quadrados', ip: 'localhost', porta: 8081),
-        Sala(nome: 'Só Quadrados', ip: 'localhost', porta: 8081),
-        Sala(nome: 'Só Quadrados', ip: 'localhost', porta: 8081),
+        Sala(nome: 'Gartic Phone', ip: 'localhost', porta: 8080, ativos: 5),
+        Sala(nome: 'Só Quadrados', ip: 'localhost', porta: 8081, ativos: 2),
       ];
     });
+  }
+
+  void _entrarNaSala(Sala sala) {
+    goTo(AppRoute.board, sala: sala);
   }
 
   @override
@@ -43,28 +43,76 @@ class _ViewScreenState extends State<ViewScreen> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    if (_salas.isEmpty) {
-      return Scaffold(body: Center(child: Column()));
-    }
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: SdwbAppBar(title: 'Board', showBack: true),
+      appBar: const SdwbAppBar(),
       body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: 520, // no desktop fica elegante
-              maxHeight:
-                  MediaQuery.of(context).size.height * 0.7, // 70% da tela
-            ),
-            child: Column(
-              children: [
-                Column(
-                  children: [Text('Salas Ativas'), Text('Escolha um Quadro')],
-                ),
-                Divider(),
-                Expanded(child: Text('')),
-              ],
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 640),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          Icons.wifi,
+                          color: colorScheme.primary,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Salas Ativas',
+                            style: Theme.of(
+                              context,
+                            ).textTheme.headlineMedium?.copyWith(fontSize: 22),
+                          ),
+                          Text(
+                            '${_salas.length} salas disponíveis',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  if (_salas.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 32),
+                      child: Text(
+                        'Nenhuma sala ativa no momento.',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    )
+                  else
+                    Expanded(
+                      child: ListView.separated(
+                        itemCount: _salas.length,
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(height: 12),
+                        itemBuilder: (context, index) => SalaCardWidget(
+                          sala: _salas[index],
+                          onEntrar: () => _entrarNaSala(_salas[index]),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         ),

@@ -5,10 +5,15 @@ class Sala {
   String _ip;
   int _porta;
 
-  Sala({required String nome, required String ip, required int porta})
-    : _nome = nome,
-      _ip = ip,
-      _porta = porta;
+  Sala({
+    required String nome,
+    required String ip,
+    required int porta,
+    required this.ativos,
+  }) : _nome = nome,
+       _ip = ip,
+       _porta = porta;
+  int ativos;
 
   String get nome => _nome;
 
