@@ -51,7 +51,11 @@ class _AppRouterView extends StatelessWidget {
       case AppRoute.view:
         return const ViewScreen();
       case AppRoute.board:
-        return BoardScreen(sala: entry.sala);
+        return BoardScreen(
+          sala: entry.sala,
+          boardState: entry.boardState,
+          conexao: entry.conexao,
+        );
       case AppRoute.create:
         return const CreateScreen();
     }

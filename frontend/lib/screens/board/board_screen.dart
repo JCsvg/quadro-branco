@@ -2,16 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:sdwb/core/signals/router_signals.dart';
 import 'package:sdwb/core/signals/theme_controll_signals.dart';
+import 'package:sdwb/core/signals/usuario_signals.dart';
 import 'package:sdwb/models/sala.dart';
 import 'package:sdwb/screens/board/widgets/draing_canvas.dart';
 import 'package:sdwb/screens/board/widgets/members_painel.dart';
 import 'package:sdwb/screens/board/widgets/notifications_button.dart';
+import 'package:sdwb/services/sala_conexao.dart';
+import 'package:sdwb/state/board_state.dart';
 import 'package:signals/signals_flutter.dart';
+import 'package:uuid/uuid.dart';
 
 class BoardScreen extends StatefulWidget {
-  const BoardScreen({super.key, this.sala});
+  const BoardScreen({super.key, this.sala, this.boardState, this.conexao});
 
   final Sala? sala;
+  final BoardState? boardState;
+  final SalaConexao? conexao;
 
   @override
   State<BoardScreen> createState() => _BoardScreenState();
@@ -23,6 +29,13 @@ class _BoardScreenState extends State<BoardScreen> {
   DrawTool _tool = DrawTool.selecionar;
   Color _color = kStrokeColors.first;
   bool _temSelecao = false;
+  bool _saindo = false;
+
+  /// Se a tela foi aberta sem rede (sem `conexao`/`boardState` reais — ex.
+  /// abrindo o board direto, fora do fluxo criar/entrar), cria um estado
+  /// local efêmero só pra o canvas continuar funcionando.
+  late final BoardState _boardState =
+      widget.boardState ?? BoardState(meuClienteId: const Uuid().v4());
 
   static const _ferramentas = <DrawTool, IconData>{
     DrawTool.selecionar: Icons.back_hand_outlined,
@@ -33,13 +46,21 @@ class _BoardScreenState extends State<BoardScreen> {
     DrawTool.triangle: Icons.change_history,
   };
 
+  Future<void> _sair() async {
+    if (_saindo) return;
+    setState(() => _saindo = true);
+    await widget.conexao?.sair();
+    if (!mounted) return;
+    goTo(AppRoute.home);
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final sala = widget.sala;
 
     return Scaffold(
-      appBar: _BoardAppBar(sala: sala),
+      appBar: _BoardAppBar(sala: sala, onSair: _sair),
       body: Column(
         children: [
           _Toolbar(
@@ -62,11 +83,12 @@ class _BoardScreenState extends State<BoardScreen> {
           Expanded(
             child: Row(
               children: [
-                const MembersPainel(),
+                _MembersPainelConectado(conexao: widget.conexao),
                 VerticalDivider(width: 1, color: colorScheme.outlineVariant),
                 Expanded(
                   child: DrawingCanvas(
                     key: _canvasKey,
+                    boardState: _boardState,
                     tool: _tool,
                     color: _color,
                     onSelecaoMudou: (selecionado) =>
@@ -82,10 +104,60 @@ class _BoardScreenState extends State<BoardScreen> {
   }
 }
 
+/// Painel de participantes ligado a uma [SalaConexao] real (escuta os
+/// `notifyListeners()` dela pra atualizar a lista ao vivo). Sem conexão
+/// (`conexao == null`), cai pro `MembersPainel` mockado de sempre.
+class _MembersPainelConectado extends StatelessWidget {
+  const _MembersPainelConectado({required this.conexao});
+
+  final SalaConexao? conexao;
+
+  static const _coresAvatar = [
+    Colors.indigo,
+    Colors.blue,
+    Colors.pink,
+    Colors.teal,
+    Colors.orange,
+    Colors.purple,
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final conexao = this.conexao;
+    if (conexao == null) {
+      return const MembersPainel();
+    }
+
+    return ListenableBuilder(
+      listenable: conexao,
+      builder: (context, _) {
+        final outros = conexao.membros.where((m) => m.id != conexao.meuId);
+
+        final participantes = [
+          Participante(
+            nome: meuNomeSignal.value,
+            cor: _coresAvatar[0],
+            isVoce: true,
+          ),
+          ...outros.map(
+            (m) => Participante(
+              nome: m.nome,
+              cor: _coresAvatar[1 + (m.id.hashCode % (_coresAvatar.length - 1))],
+            ),
+          ),
+        ];
+
+        return MembersPainel(participantes: participantes);
+      },
+    );
+  }
+}
+
 class _BoardAppBar extends StatelessWidget implements PreferredSizeWidget {
-  const _BoardAppBar({required this.sala});
+  const _BoardAppBar({required this.sala, required this.onSair});
 
   final Sala? sala;
+  final VoidCallback onSair;
 
   @override
   Widget build(BuildContext context) {
@@ -131,7 +203,7 @@ class _BoardAppBar extends StatelessWidget implements PreferredSizeWidget {
         const NotificationsButton(),
         const SizedBox(width: 8),
         TextButton.icon(
-          onPressed: () => goTo(AppRoute.home),
+          onPressed: onSair,
           style: TextButton.styleFrom(
             backgroundColor: Theme.of(context).colorScheme.errorContainer,
             foregroundColor: Theme.of(context).colorScheme.onErrorContainer,

@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:sdwb/core/network/tcp_client.dart';
 import 'package:sdwb/core/signals/router_signals.dart';
 import 'package:sdwb/core/theme/app_bar.dart';
 import 'package:sdwb/models/sala.dart';
+import 'package:sdwb/services/coordinator_server.dart';
+import 'package:sdwb/services/name_service_client.dart';
+import 'package:sdwb/state/board_state.dart';
+import 'package:uuid/uuid.dart';
 
 class CreateScreen extends StatefulWidget {
   const CreateScreen({super.key});
@@ -14,8 +19,7 @@ class _CreateScreenState extends State<CreateScreen> {
   final _nomeSalaController = TextEditingController();
   final _portaController = TextEditingController(text: '3001');
   bool _isLoading = false;
-
-  static const _ipLocal = '192.168.1.100';
+  String? _erro;
 
   @override
   void dispose() {
@@ -25,26 +29,50 @@ class _CreateScreenState extends State<CreateScreen> {
   }
 
   Future<void> _criarSala() async {
-    setState(() => _isLoading = true);
-    await Future.delayed(const Duration(seconds: 1));
+    setState(() {
+      _isLoading = true;
+      _erro = null;
+    });
 
-    final sala = Sala(
-      nome: _nomeSalaController.text.trim(),
-      ip: _ipLocal,
-      porta: int.tryParse(_portaController.text) ?? 3001,
-      ativos: 1,
-    );
+    final nomeSala = _nomeSalaController.text.trim();
+    final meuId = const Uuid().v4();
+    final boardState = BoardState(meuClienteId: meuId);
+    final coordenador = CoordinatorServer(boardState: boardState, meuId: meuId);
 
-    if (!mounted) return;
-    setState(() => _isLoading = false);
-    goTo(AppRoute.board, sala: sala);
+    try {
+      final portaDesejada = int.tryParse(_portaController.text.trim()) ?? 0;
+      await coordenador.iniciar(porta: portaDesejada);
+
+      final ip = await TcpClient.ipLocal();
+      final nameService = await NameServiceClient.conectarAutomatico();
+      try {
+        await nameService.registrar(
+          nome: nomeSala,
+          ip: ip,
+          porta: coordenador.porta,
+        );
+      } finally {
+        await nameService.fechar();
+      }
+
+      if (!mounted) return;
+      final sala = Sala(nome: nomeSala, ip: ip, porta: coordenador.porta, ativos: 1);
+      goTo(AppRoute.board, sala: sala, boardState: boardState, conexao: coordenador);
+    } catch (e) {
+      await coordenador.encerrar();
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _erro = 'Não foi possível criar a sala: $e';
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final porta = _portaController.text;
-    final endereco = '$_ipLocal:${porta.isEmpty ? '----' : porta}';
+    final endereco = 'definido ao criar:${porta.isEmpty ? '----' : porta}';
 
     return Scaffold(
       appBar: const SdwbAppBar(),
@@ -152,6 +180,13 @@ class _CreateScreenState extends State<CreateScreen> {
                             'Compartilhe este endereço com seu time.',
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
+                          if (_erro != null) ...[
+                            const SizedBox(height: 12),
+                            Text(
+                              _erro!,
+                              style: TextStyle(color: colorScheme.error),
+                            ),
+                          ],
                           const SizedBox(height: 24),
                           SizedBox(
                             width: double.infinity,

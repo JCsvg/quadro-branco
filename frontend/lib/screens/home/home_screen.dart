@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:sdwb/core/signals/router_signals.dart';
 import 'package:sdwb/core/signals/theme_palette_signals.dart';
+import 'package:sdwb/core/signals/usuario_signals.dart';
 import 'package:sdwb/core/theme/app_bar.dart';
 import 'package:sdwb/core/theme/theme_palette.dart';
 import 'package:signals/signals_flutter.dart';
@@ -134,7 +135,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             decoration: const InputDecoration(
                               hintText: 'Ex: Lucas Mendes',
                             ),
-                            onChanged: (_) => setState(() {}),
+                            onChanged: (valor) => setState(
+                              () => meuNomeSignal.value = valor.trim(),
+                            ),
                           ),
                           const SizedBox(height: 20),
                           Row(

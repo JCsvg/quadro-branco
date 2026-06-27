@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:sdwb/core/signals/router_signals.dart';
+import 'package:sdwb/core/signals/usuario_signals.dart';
 import 'package:sdwb/core/theme/app_bar.dart';
 import 'package:sdwb/models/sala.dart';
 import 'package:sdwb/screens/view/widgets/sala_card_widget.dart';
+import 'package:sdwb/services/coordnator_client.dart';
+import 'package:sdwb/services/name_service_client.dart';
+import 'package:sdwb/state/board_state.dart';
+import 'package:uuid/uuid.dart';
 
 class ViewScreen extends StatefulWidget {
   const ViewScreen({super.key});
@@ -13,6 +18,7 @@ class ViewScreen extends StatefulWidget {
 
 class _ViewScreenState extends State<ViewScreen> {
   bool _isLoading = true;
+  String? _erro;
   List<Sala> _salas = [];
 
   @override
@@ -22,19 +28,56 @@ class _ViewScreenState extends State<ViewScreen> {
   }
 
   Future<void> _carregarSalas() async {
-    await Future.delayed(const Duration(seconds: 2));
-
     setState(() {
-      _isLoading = false;
-      _salas = [
-        Sala(nome: 'Gartic Phone', ip: 'localhost', porta: 8080, ativos: 5),
-        Sala(nome: 'Só Quadrados', ip: 'localhost', porta: 8081, ativos: 2),
-      ];
+      _isLoading = true;
+      _erro = null;
     });
+
+    try {
+      final nameService = await NameServiceClient.conectarAutomatico();
+      final List<Sala> salas;
+      try {
+        salas = await nameService.listar();
+      } finally {
+        await nameService.fechar();
+      }
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _salas = salas;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _erro = 'Não foi possível buscar as salas: $e';
+      });
+    }
   }
 
-  void _entrarNaSala(Sala sala) {
-    goTo(AppRoute.board, sala: sala);
+  Future<void> _entrarNaSala(Sala sala) async {
+    final meuId = const Uuid().v4();
+    final boardState = BoardState(meuClienteId: meuId);
+    final cliente = CoordnatorClient(
+      boardState: boardState,
+      meuId: meuId,
+      meuNome: meuNomeSignal.value,
+    );
+
+    try {
+      await cliente.entrarNaSala(
+        ipCoordenador: sala.ip,
+        portaCoordenador: sala.porta,
+      );
+      if (!mounted) return;
+      goTo(AppRoute.board, sala: sala, boardState: boardState, conexao: cliente);
+    } catch (e) {
+      await cliente.sair();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Não foi possível entrar na sala: $e')),
+      );
+    }
   }
 
   @override
@@ -73,20 +116,31 @@ class _ViewScreenState extends State<ViewScreen> {
                         ),
                       ),
                       const SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Salas Ativas',
-                            style: Theme.of(
-                              context,
-                            ).textTheme.headlineMedium?.copyWith(fontSize: 22),
-                          ),
-                          Text(
-                            '${_salas.length} salas disponíveis',
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        ],
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Salas Ativas',
+                              style: Theme.of(context).textTheme.headlineMedium
+                                  ?.copyWith(fontSize: 22),
+                            ),
+                            Text(
+                              _erro ?? '${_salas.length} salas disponíveis',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: _erro != null
+                                        ? colorScheme.error
+                                        : null,
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Atualizar',
+                        onPressed: _carregarSalas,
+                        icon: const Icon(Icons.refresh),
                       ),
                     ],
                   ),
